@@ -38,32 +38,26 @@ function on_change()
     .. 'Authorization: Basic ' .. config.base64_auth .. '\r\n',
     '{"grant_type": "refresh_token", "refresh_token": "' .. config.refresh_token .. '"}',
     function(code, data)
-      debug_message('refresh status code: ' .. (code or 'nil'))
-      debug_message('refresh resp data: ' .. (data or 'nil'))
+      debug_message('token refresh status code: ' .. (code or 'nil'))
+      debug_message('token refresh resp data: ' .. (data or 'nil'))
 
-      json_data = jsonify(data)
-      for k,v in pairs(json_data) do print(k, v) end
-
-      debug_message('Hailing ride')
+      debug_message('Requesting ride')
       http.post(
         'https://api.lyft.com/v1/rides',
-        'Authorization: Bearer ' .. json_data.access_token .. '\r\n'
+        'Authorization: Bearer ' .. 'SANDBOX-gAAAAABW0edPpkkTOzW3w0vo5DE-bgHGD53Hz-kehlw-FWMQw72YqmbOPYlenvnEtRLg-Ru025J0zHhPR443buu6Wr6-ipcChddXUfgeeYZUu5ZFZpjicEiwdFiBl0Y6lklBVQTMtc2BiosI9nC2SFkAuL28PSIAQpgCISDKNdYopoaQjg5nYGIQ210isODJ7o451tkeUJE5vv2Pmq-nxfKlTQK5LPwFvQ-MHUBRHZezdPBtXA0uQ-xamxPuz7eWbNUJqbeVsqZlsVxcN21YYC5I4nolkuUlnmfAVfMFJcam6DrQOVVKz6E=' .. '\r\n'
         .. 'Content-Type: application/json\r\n',
         '{"ride_type" : "lyft", "origin" : {"lat" : 37.804427, "lng" : -122.429473 } }',
         function(code, data)
-          debug_message('hailing status code: ' .. (code or 'nil'))
-          debug_message('hailing resp data: ' .. (data or 'nil'))
-
-          json_data = jsonify(data)
-          for k,v in pairs(json_data) do print(k, v) end
+          debug_message('ride request status code: ' .. (code or 'nil'))
+          debug_message('ride request resp data: ' .. (data or 'nil'))
 
           debug_message("Sending IFTTT notification")
           http.get(
             'https://maker.ifttt.com/trigger/lyftoff/with/key/' .. config.ifttt_event_key,
             nil,
             function(code, data)
-              debug_message('status code: ' .. (code or 'nil'))
-              debug_message('resp data: ' .. (data or 'nil'))
+              debug_message('ifttt status code: ' .. (code or 'nil'))
+              debug_message('ifttt resp data: ' .. (data or 'nil'))
               print("LYFT OFF!")
             end
           )
@@ -146,4 +140,4 @@ end
 on_start()
 start_server()
 gpio.mode(button_pin, gpio.INT)
-gpio.trig(button_pin, 'both', debounce(on_change))
+gpio.trig(button_pin, 'down', debounce(on_change))
