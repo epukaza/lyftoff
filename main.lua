@@ -28,18 +28,19 @@ end
 
 function on_change()
   debug_message('on_change')
+  pwm_fadeout()
   --[[
   Since one of the legs in our 3-legged OAUTH is a peg leg, 
   we opt to refresh on every request. ESPs can barely keep time anyway.
   ]]
-  http.post(
-    'https://api.lyft.com/oauth/token',
-    'Content-Type: application/json\r\n'
-    .. 'Authorization: Basic ' .. config.base64_auth .. '\r\n',
-    '{"grant_type": "refresh_token", "refresh_token": "' .. config.refresh_token .. '"}',
-    function(code, data)
-      debug_message('token refresh status code: ' .. (code or 'nil'))
-      debug_message('token refresh resp data: ' .. (data or 'nil'))
+  -- http.post(
+  --   'https://api.lyft.com/oauth/token',
+  --   'Content-Type: application/json\r\n'
+  --   .. 'Authorization: Basic ' .. config.base64_auth .. '\r\n',
+  --   '{"grant_type": "refresh_token", "refresh_token": "' .. config.refresh_token .. '"}',
+  --   function(code, data)
+  --     debug_message('token refresh status code: ' .. (code or 'nil'))
+  --     debug_message('token refresh resp data: ' .. (data or 'nil'))
 
       debug_message('Requesting ride')
       http.post(
@@ -63,8 +64,8 @@ function on_change()
           )
         end
       )
-    end
-  )
+  --   end
+  -- )
 end
 
 function start_server()
@@ -90,11 +91,17 @@ function stop_server()
 end
 
 function connect(sock)
-  sock:on('receive', function(sck, payload)
-    conn:send('HTTP/1.1 200 OK\r\n\r\n' .. 'Hello world')
+  sock:on('receive', function(sock, payload)
+    if string.match(payload, 'fadeinplease') then
+      pwm_fadein()
+    end
+
+    if string.match(payload, 'fadeoutplease') then
+      pwm_fadeout()
+    end
   end)
 
-  sock:on('send', function(sck)
+  sock:on('sent', function(sck)
     sck:close()
   end)
 end
@@ -113,6 +120,9 @@ function on_start()
 
   debug_message('on_start: connecting')
   wifi.sta.config(config.ssid, config.pwd)
+
+  debug_message('on_start: starting server to receive pushes')
+  start_server()
 end
 
 function pwm_fadein()
@@ -138,6 +148,5 @@ function pwm_fadeout()
 end
 
 on_start()
-start_server()
 gpio.mode(button_pin, gpio.INT)
 gpio.trig(button_pin, 'down', debounce(on_change))
