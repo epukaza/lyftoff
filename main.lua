@@ -21,11 +21,16 @@ function debounce (func)
     end
 end
 
-function on_change ()
-  print('LYFT OFF!')
+function jsonify(payload)
+  open_brace, close_brace = string.find(payload, '^{.*}')
+  return cjson.decode(string.sub(payload, open_brace, close_brace))
+end
+
+function on_change()
+  debug_message('on_change')
   --[[
   Since one of the legs in our 3-legged OAUTH is a peg leg, 
-  we opt to refresh on every request. ESPs can't keep time anyway.
+  we opt to refresh on every request. ESPs can barely keep time anyway.
   ]]
   http.post(
     'https://api.lyft.com/oauth/token',
@@ -36,16 +41,32 @@ function on_change ()
       debug_message('refresh status code: ' .. (code or 'nil'))
       debug_message('refresh resp data: ' .. (data or 'nil'))
 
-      open_brace, close_brace = string.find(data, '^{.*}')
-      json_data = cjson.decode(string.sub(data, open_brace, close_brace))
+      json_data = jsonify(data)
       for k,v in pairs(json_data) do print(k, v) end
 
-      http.get(
-        'https://maker.ifttt.com/trigger/lyftoff/with/key/' .. config.ifttt_event_key,
-        nil,
+      debug_message('Hailing ride')
+      http.post(
+        'https://api.lyft.com/v1/rides',
+        'Authorization: Bearer ' .. json_data.access_token .. '\r\n'
+        .. 'Content-Type: application/json\r\n',
+        '{"ride_type" : "lyft", "origin" : {"lat" : 37.804427, "lng" : -122.429473 } }',
         function(code, data)
-          debug_message('status code: ' .. (code or 'nil'))
-          debug_message('resp data: ' .. (data or 'nil'))
+          debug_message('hailing status code: ' .. (code or 'nil'))
+          debug_message('hailing resp data: ' .. (data or 'nil'))
+
+          json_data = jsonify(data)
+          for k,v in pairs(json_data) do print(k, v) end
+
+          debug_message("Sending IFTTT notification")
+          http.get(
+            'https://maker.ifttt.com/trigger/lyftoff/with/key/' .. config.ifttt_event_key,
+            nil,
+            function(code, data)
+              debug_message('status code: ' .. (code or 'nil'))
+              debug_message('resp data: ' .. (data or 'nil'))
+              print("LYFT OFF!")
+            end
+          )
         end
       )
     end
