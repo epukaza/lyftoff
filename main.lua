@@ -21,18 +21,23 @@ function debounce (func)
     end
 end
 
-function onChange ()
+function on_change ()
   print('LYFT OFF!')
+  --[[
+  Since one of the legs in our 3-legged OAUTH is a peg leg, 
+  we opt to refresh on every request. ESPs can't keep time anyway.
+  ]]
   http.post(
     'https://api.lyft.com/oauth/token',
-    'Content-Type: application/json',
+    'Content-Type: application/json\r\n'
+    .. 'Authorization: Basic ' .. config.base64_auth .. '\r\n',
     '{"grant_type": "refresh_token", "refresh_token": "' .. config.refresh_token .. '"}',
     function(code, data)
       debug_message('refresh status code: ' .. (code or 'nil'))
       debug_message('refresh resp data: ' .. (data or 'nil'))
 
-      openBrace, closeBrace = string.find(data, '^{.*}')
-      json_data = cjson.decode(string.sub(data, openBrace, closeBrace))
+      open_brace, close_brace = string.find(data, '^{.*}')
+      json_data = cjson.decode(string.sub(data, open_brace, close_brace))
       for k,v in pairs(json_data) do print(k, v) end
 
       http.get(
@@ -47,7 +52,7 @@ function onChange ()
   )
 end
 
-function startServer()
+function start_server()
   debug_message('server start')
   debug_message(srv)
 
@@ -59,7 +64,7 @@ function startServer()
   debug_message(srv)
 end
 
-function stopServer()
+function stop_server()
   debug_message('server stop')
   debug_message(srv)
   if srv then
@@ -79,19 +84,19 @@ function connect(sock)
   end)
 end
 
-function onStart()
-  debug_message('onStart')
+function on_start()
+  debug_message('on_start')
 
-  debug_message('onStart: reading config')
+  debug_message('on_start: reading config')
   file.open('config.json')
   config = cjson.decode(file.read())
   file.close()
 
-  debug_message('onStart: enable pwm')
+  debug_message('on_start: enable pwm')
   pwm.setup(pwm_pin, pwm_freq, 0)
   pwm.start(pwm_pin)
 
-  debug_message('onStart: connecting')
+  debug_message('on_start: connecting')
   wifi.sta.config(config.ssid, config.pwd)
 end
 
@@ -117,7 +122,7 @@ function pwm_fadeout()
   end
 end
 
-onStart()
-startServer()
+on_start()
+start_server()
 gpio.mode(button_pin, gpio.INT)
-gpio.trig(button_pin, 'both', debounce(onChange))
+gpio.trig(button_pin, 'both', debounce(on_change))
